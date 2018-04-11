@@ -24,10 +24,10 @@ int sampleTimes = 3;
 float InitialAlpha = 0.02;
 float reduce = 0.98;
 int tt,tt1;
-int dimensionC = 230;//1000;
-int dimensionWPE = 5;//25;
+int dimensionC = 230;//1000; // hidden size
+int dimensionWPE = 5;//25;   // position embedding dim
 int window = 3;
-int limit = 30;
+int limit = 30; // position feature limits
 float marginPositive = 2.5;
 float marginNegative = 0.5;
 float margin = 2;
@@ -53,19 +53,24 @@ float eps = 0.0000000001;
 FILE *logg;
 FILE *prlog;
 
-float *wordVec;
+float *wordVec;   // normed word embedding
 int wordTotal, dimension, relationTotal;
 int PositionMinE1, PositionMaxE1, PositionTotalE1,PositionMinE2, PositionMaxE2, PositionTotalE2;
-map<string,int> wordMapping;
-vector<string> wordList;
-map<string,int> relationMapping;
-vector<int *> trainLists, trainPositionE1, trainPositionE2;
-vector<int> trainLength;
-vector<int> headList, tailList, relationList;
+map<string,int> wordMapping; // map words to ids
+vector<string> wordList;     // map ids to words
+map<string,int> relationMapping; // map relations to ids
+
+// train data
+vector<int *> trainLists, trainPositionE1, trainPositionE2; // sentence, position feature of all train data, indexed by instance id
+vector<int> trainLength;                      // sentence lengths of all train data, indexed by instance id
+vector<int> headList, tailList, relationList; // text e1_id e2_id relation_id of all train data, indexed by instance id
+
+// test data
 vector<int *> testtrainLists, testPositionE1, testPositionE2;
 vector<int> testtrainLength;
 vector<int> testheadList, testtailList, testrelationList;
-vector<std::string> nam;
+
+vector<std::string> nam; // relaiton set
 
 vector<float *> sentenceVec;
 vector<double>  lossVec;
@@ -89,13 +94,18 @@ string method;
 
 int nowTurn;
 
-map<string,vector<int> > bags_train, bags_test;
+map<string,vector<int> > bags_train, bags_test; // map e1-e2-relation to instance id
 
-vector<int> headEntityList, tailEntityList;
-vector<float> entityVec;
-map<string, int> entityMapping;
+vector<int> headEntityList, tailEntityList; // kb e1_id e2_id of all train data, indexed by instance id
+vector<float> entityVec;       // entity embedding
+map<string, int> entityMapping;// map entity to id
 
+// Read word, entity embedding
+// Read train and test data
 void init() {
+    //=============================
+    // read word embedding and norm
+    //=============================
     string tmpPath = pathString + "data/vec.bin";
     FILE *f = fopen(tmpPath.c_str(), "rb");
     //    FILE *f = fopen("/Users/fengjun/Documents/Research/relation extraction/code/NRE-master/data/vec.bin", "rb");
@@ -143,6 +153,9 @@ void init() {
     
     wordTotal+=1;
     fclose(f);
+    //=============================
+    // read relations
+    //=============================
     char buffer[1000];
     tmpPath = pathString + "data/RE/relation2id.txt";
     f = fopen(tmpPath.c_str(), "r");
@@ -157,6 +170,9 @@ void init() {
     fclose(f);
     cout<<"relationTotal:\t"<<relationTotal<<endl;
     
+    //=============================
+    // read entities
+    //=============================
     tmpPath = pathString + "data/RE/entity2id.txt";
     f = fopen(tmpPath.c_str(), "r");
     //f = fopen("/Users/fengjun/Documents/Research/relation extraction/code/RelationExtraction/data/RE/relation2id.txt", "r");
@@ -166,7 +182,23 @@ void init() {
         entityMapping[(string)(buffer)] = id;
     }
     fclose(f);
-    
+    printf("entity2id: %d\n", entityMapping.size());
+
+    entityVec.clear();
+    tmpPath = pathString + "data/pretrain/entity2vec.txt";// NOTE: different dir
+    f = fopen(tmpPath.c_str(), "r");
+    float tt;
+    while (fscanf(f, "%f", &tt) != EOF)
+        entityVec.push_back(tt);
+    fclose(f);
+    printf("entity2vec: %d\n", entityVec.size()/50);
+
+    //=============================
+    // read train and test data
+    //=============================
+    // data format: e1_kb e2_kb e1_str e2_str relation_str 
+
+    // map e1-e2 to valid relation set w.r.t e1-e2
     map<string, set<int> > trainPair, testPair;
     tmpPath = pathString + "data/RE/train.txt";
     f = fopen(tmpPath.c_str(), "r");
@@ -191,8 +223,8 @@ void init() {
         int num = relationMapping[(string)(buffer)];
         trainPair[e1 +"\t"+e2].insert(num);
         
-        int len = 0, lefnum = 0, rignum = 0;
-        std::vector<int> tmpp;
+        int len = 0, lefnum = 0, rignum = 0; // entity position
+        std::vector<int> tmpp; // store words id in sentence
         while (fscanf(f,"%s", buffer)==1) {
             std::string con = buffer;
             if (con=="###END###") break;
@@ -207,6 +239,8 @@ void init() {
         tailList.push_back(tail);
         relationList.push_back(num);
         trainLength.push_back(len);
+
+        // position feature
         int *con=(int *)calloc(len,sizeof(int));
         int *conl=(int *)calloc(len,sizeof(int));
         int *conr=(int *)calloc(len,sizeof(int));
@@ -231,6 +265,7 @@ void init() {
         //        if (trainNum >5000) break;
     }
     fclose(f);
+    printf("Train data: %d\n", trainNum);
     
     //    for (int i = 0; i < headList.size(); i ++)
     //        printf("%d ", headList[i]);
@@ -305,7 +340,9 @@ void init() {
     //    printf("check data: %d %d\n", trainNumTwo, testNumTwo);
     fclose(f);
     //    cout<<PositionMinE1<<' '<<PositionMaxE1<<' '<<PositionMinE2<<' '<<PositionMaxE2<<endl;
-    
+    printf("Test data: %d\n", testNum);
+
+    // fix position feature? 
     for (int i = 0; i < trainPositionE1.size(); i++) {
         int len = trainLength[i];
         int *work1 = trainPositionE1[i];
@@ -327,14 +364,6 @@ void init() {
     }
     PositionTotalE1 = PositionMaxE1 - PositionMinE1 + 1;
     PositionTotalE2 = PositionMaxE2 - PositionMinE2 + 1;
-    
-    entityVec.clear();
-    tmpPath = pathString + "data/pretrain/entity2vec.txt";
-    f = fopen(tmpPath.c_str(), "r");
-    float tt;
-    while (fscanf(f, "%f", &tt) != EOF)
-        entityVec.push_back(tt);
-    fclose(f);
 }
 
 float CalcTanh(float con) {

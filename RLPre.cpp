@@ -239,19 +239,21 @@ namespace RLPre {
         updateMatrixW1PositionE1 = (float *)calloc(dimensionC * dimensionWPE * window, sizeof(float));
         updateMatrixW1PositionE2 = (float *)calloc(dimensionC * dimensionWPE * window, sizeof(float));
         
-        b_train.clear();
-        c_train.clear();
+        b_train.clear();// vector of string
+        c_train.clear();// vector of int
         int tmpId = 0;
         int zeroNum = 0;
         for (map<string,vector<int> >:: iterator it = bags_train.begin(); it!=bags_train.end(); it++)
         {
+            // b_train.size() represents the index of `it`
             c_train.push_back(b_train.size());
-            shuffleIndex.push_back(b_train.size());
+            shuffleIndex.push_back(b_train.size());// vector of int
             b_train.push_back(it -> first);
             if (it -> second.size() == 1)
                 zeroNum ++;
         }
         printf("size = 1: %d\n", zeroNum);
+        
         zeroNum = 0;
         for (int ii = 0; ii < shuffleIndex.size(); ii ++)
         {
@@ -259,21 +261,25 @@ namespace RLPre {
             {
                 int i = bags_train[b_train[ii]][k];
                 //                printf("%d %d %d %d\n", i, k, headList[i], tailList[i]);
-                if (headList[i] == 0 || tailList[i] == 0)
+                if (headList[i] == 0 || tailList[i] == 0)// entity is UNK
                     zeroNum ++;
                 //                for (int j = 0; j < dimension; j ++)
                 //                    printf("%lf ", wordVec[headList[i] * dimension + j]);
                 //                for (int j = 0; j < dimension; j ++)
                 //                    printf("%lf ", wordVec[tailList[i] * dimension + j]);
                 //                printf("\n");
-                break;
+                break; // why break the for loop with no conditions?//92721 117915
             }
         }
         printf("%d %d\n", zeroNum, shuffleIndex.size());
+        
         if (strcmp(method.c_str(), "rlpre") == 0)
             alpha = InitialAlpha * rate / batch;
-        else alpha = InitialAlpha * rate / batch;
+        else alpha = InitialAlpha * rate / batch; // why there is a `if` statement
         printf("%d\n", trainLists.size());
+
+        #include <cstdlib>
+        exit(0);
         
         double totAvgScore;
         if (strcmp(method.c_str(), "rlpre") == 0)
@@ -329,7 +335,7 @@ namespace RLPre {
             totAvgScore = OneScore / OneNum;
         }
         
-//        test::test(0);
+        //        test::test(0);
         //        memcpy(updateFeatureW, featureW, featureLen * sizeof(float));
         memcpy(featureWDao, featureW, featureLen * sizeof(float));
         for (turn = 0; turn < trainPreTimes; turn ++)
@@ -479,17 +485,17 @@ namespace RLPre {
             }
             
             memcpy(featureWDao, featureW, featureLen * sizeof(float));
-//            string outPath = outString + "_bestRL.txt" + Int_to_String(turn);
-//            FILE *fout = fopen(outPath.c_str(), "w");
-//            
-//            for (int i = 0; i < featureLen; i ++)
-//                fprintf(fout, "%lf ", featureW[i]);
-//            fprintf(fout, "\n");
-//            fclose(fout);
-//            
-//            for (int i = 0; i < featureLen; i ++)
-//                printf("%lf ", featureW[i]);
-//            printf("\n");
+        //    string outPath = outString + "_bestRL.txt" + Int_to_String(turn);
+        //    FILE *fout = fopen(outPath.c_str(), "w");
+           
+        //    for (int i = 0; i < featureLen; i ++)
+        //        fprintf(fout, "%lf ", featureW[i]);
+        //    fprintf(fout, "\n");
+        //    fclose(fout);
+           
+        //    for (int i = 0; i < featureLen; i ++)
+        //        printf("%lf ", featureW[i]);
+        //    printf("\n");
             
             rlLoss /= allChosenSentence.size();
             if (rlLoss > bestLoss)
@@ -497,7 +503,7 @@ namespace RLPre {
                 bestLoss = rlLoss;
                 memcpy(bestFeatureW, featureW, featureLen * sizeof(float));
             }
-//            fprintf(logg, "turn = %d\n", turn);
+        //    fprintf(logg, "turn = %d\n", turn);
             fprintf(logg, "chosen sentence size = %d %lf %lf\n", allChosenSentence.size(), rlLoss, bestLoss);
             fflush(logg);
             printf("chosen sentence size = %d %lf %lf\n", allChosenSentence.size(), rlLoss, bestLoss);
@@ -523,8 +529,8 @@ namespace RLPre {
         tmpPath = outString + "pr.txt";
         prlog = fopen(tmpPath.c_str(), "w");
         
-        init();
-        preprocess();
+        init(); // Read word, entity embedding, train and test data
+        preprocess();  // Load pre-trained weights
         printf("finish preprocess\n");
         selection();
         fclose(logg);
