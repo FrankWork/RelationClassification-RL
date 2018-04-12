@@ -132,35 +132,6 @@ namespace RL {
         lossVec.clear();
         sentenceVec.clear();
         lossVec.clear();
-//        tmpPath = pathString + "/data/pretrain/sentenceVec.txt";
-//        FILE *fin = fopen(tmpPath.c_str(), "r");
-//        
-//        for (int i = 0; i < trainLists.size(); i ++)
-//        {
-//            float *r = (float *)calloc(dimensionC, sizeof(float));
-//            for (int j = 0; j < dimensionC; j ++)
-//            {
-//                float tmp;
-//                fscanf(fin, "%f", &tmp);
-//                r[j] = tmp;
-////                lossVec.push_back(0);
-//            }
-//            sentenceVec.push_back(r);
-//        }
-//        fclose(fin);
-//        
-//        tmpPath = pathString + "/data/pretrain/lossVec.txt";
-//        fin = fopen(tmpPath.c_str(), "r");
-//        score = 0;
-//        for (int i = 0; i < trainLists.size(); i ++)
-//        {
-//            double tmp;
-//            fscanf(fin, "%lf", &tmp);
-//            lossVec.push_back(tmp);
-//            score += tmp;
-//        }
-//        fclose(fin);
-    
 
         for (int i = 0; i < trainLists.size(); i ++)
         {
@@ -174,9 +145,12 @@ namespace RL {
     pair<double, float*> GetSentenceVec(int flag, int *sentence, int *trainPositionE1, int *trainPositionE2, int len, int e1, int e2, int r1, double &res, double &res1, float *matrixW1, float *matrixB1, float *matrixRelation,
                           float *positionVecE1, float *positionVecE2, float*matrixW1PositionE1, float*matrixW1PositionE2,  float *matrixRelationPr, float alpha)
     {
-        float *r = (float *)calloc(dimensionC, sizeof(float));
+        float *r = (float *)calloc(dimensionC, sizeof(float));// sentence vector
         int tip[dimensionC];
         
+        //=============================
+        // conv and max-pooling
+        //=============================
         for (int i = 0; i < dimensionC; i++) {
             int last = i * dimension * window;
             int lastt = i * dimensionWPE * window;
@@ -213,6 +187,9 @@ namespace RL {
             r[i] = mx + matrixB1[i];
         }
         
+        //=============================
+        // tanh activation
+        //=============================
         for (int i = 0; i < dimensionC; i++) {
             r[i] = CalcTanh(r[i]);
         }
@@ -223,12 +200,18 @@ namespace RL {
         //            printf("%lf ", r[i]);
         //        printf("\n");
         
+        //=============================
+        // dropout
+        //=============================
         vector<int> dropout;
         for (int i = 0; i < dimensionC; i++)
             if (flag == 0)
                 dropout.push_back(1);
-            else dropout.push_back(rand()%2);
+            else dropout.push_back(rand()%2);// 0 or 1
         
+        //=============================
+        // logits
+        //=============================
         vector<double> f_r;
         double sum = 0;
         for (int j = 0; j < relationTotal; j++) {
@@ -240,7 +223,7 @@ namespace RL {
             f_r.push_back(exp(s));
             sum+=f_r[j];
         }
-        double rt = log(f_r[r1]) - log(sum);
+        double rt = log(f_r[r1]) - log(sum);// loss ?
         //        if (flag == 0)
         //        {
         //            lossVec.push_back(rt);
@@ -347,17 +330,6 @@ namespace RL {
             memcpy(matrixRelationPrDao, updateMatrixRelationPr, relationTotal * sizeof(float));				//add
             memcpy(matrixRelationDao, updateMatrixRelation, dimensionC*relationTotal * sizeof(float));
             
-//            memcpy(positionVecDaoE1, positionVecE1, PositionTotalE1 * dimensionWPE* sizeof(float));
-//            memcpy(positionVecDaoE2, positionVecE2, PositionTotalE2 * dimensionWPE* sizeof(float));
-//            memcpy(matrixW1PositionE1Dao, matrixW1PositionE1, dimensionC * dimensionWPE * window* sizeof(float));
-//            memcpy(matrixW1PositionE2Dao, matrixW1PositionE2, dimensionC * dimensionWPE * window* sizeof(float));
-//            memcpy(wordVecDao, wordVec, dimension * wordTotal * sizeof(float));
-//            
-//            memcpy(matrixW1Dao, matrixW1, sizeof(float) * dimensionC * dimension * window);
-//            memcpy(matrixB1Dao, matrixB1, sizeof(float) * dimensionC);
-//            memcpy(matrixRelationPrDao, matrixRelationPr, relationTotal * sizeof(float));				//add
-//            memcpy(matrixRelationDao, matrixRelation, dimensionC*relationTotal * sizeof(float));
-            
             pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
             for (int a = 0; a < num_threads; a++)
                 pthread_create(&pt[a], NULL, trainMode,  (void *)a);
@@ -366,37 +338,9 @@ namespace RL {
             free(pt);
             if (k%(npoch/5)==0)
             {
-//                fprintf(logg, "npoch:\t %d %d %d\n", turn, k, npoch);
-//                cout<<"npoch:\t"<<turn<<'\t'<<k<<'/'<<npoch<<endl;
-//                fprintf(logg, "score:\t %lf %lf\n", score - score1, score_tmp);
-//                cout<<"score:\t"<<score-score1<<' '<<score_tmp<<endl;
                 score1 = score;
-//                fflush(logg);
             }
             
-            //            printf("id = %d\n", k);
-            //            printf("update value\n");
-            //            for (int i = 0; i < relationTotal; i ++)
-            //                printf("%lf ", updateMatrixRelationPr[i]);
-            //            printf("\n");
-            //            printf("previous value\n");
-            //            for (int i = 0; i < relationTotal; i ++)
-            //                printf("%lf ", matrixRelationPr[i]);
-            //            printf("\n");
-//            UpdateValue(&positionVecE1[0], &updatePositionVecE1[0], PositionTotalE1 * dimensionWPE);
-//            UpdateValue(&positionVecE2[0], &updatePositionVecE2[0], PositionTotalE2 * dimensionWPE);
-//            UpdateValue(&matrixW1PositionE1[0], &updateMatrixW1PositionE1[0], dimensionC * dimensionWPE * window);
-//            UpdateValue(&matrixW1PositionE2[0], &updateMatrixW1PositionE2[0], dimensionC * dimensionWPE * window);
-//            UpdateValue(&wordVec[0], &updateWordVec[0], dimension * wordTotal);
-//            
-//            UpdateValue(&matrixW1[0], &updateMatrixW1[0], dimensionC * dimension * window);
-//            UpdateValue(&matrixB1[0], &updateMatrixB1[0], dimensionC);
-//            UpdateValue(&matrixRelationPr[0], &updateMatrixRelationPr[0], relationTotal);				//add
-//            UpdateValue(&matrixRelation[0], &updateMatrixRelation[0], dimensionC*relationTotal);
-            //            printf("now value\n");
-            //            for (int i = 0; i < relationTotal; i ++)
-            //                printf("%lf ", matrixRelationPr[i]);
-            //            printf("\n");
         }
         UpdateValue(&positionVecE1[0], &updatePositionVecE1[0], PositionTotalE1 * dimensionWPE);
         UpdateValue(&positionVecE2[0], &updatePositionVecE2[0], PositionTotalE2 * dimensionWPE);
@@ -584,7 +528,7 @@ namespace RL {
         double totAvgScore;
         
         //        memcpy(updateFeatureW, featureW, featureLen * sizeof(float));
-//        test::test(0);
+
         for (int i = 0; i < dimensionC; i ++)
             printf("%lf ", matrixB1[i]);
         printf("\n");
@@ -595,14 +539,6 @@ namespace RL {
         double maxAvgScore = -100000;
         for (turn = 0; turn < trainTimes; turn ++)
         {
-//            printf("previous value\n");
-//            for (int i = 0; i < relationTotal; i ++)
-//                printf("%lf ", matrixRelationPr[i]);
-//            printf("%\n");
-//            
-//            for (int i = 0; i < PositionTotalE1 * dimensionWPE; i ++)
-//                printf("%lf ", positionVecE1[i]);
-//            printf("\n");
             nowTurn = turn;
             double rlLoss = 0;
             ok = 0;
@@ -610,17 +546,6 @@ namespace RL {
             fprintf(logg, "turn = %d\n", turn);
             fflush(logg);
             printf("alpha = %lf\n", alpha);
-//            memcpy(positionVecDaoE1, updatePositionVecE1, PositionTotalE1 * dimensionWPE* sizeof(float));
-//            memcpy(positionVecDaoE2, updatePositionVecE2, PositionTotalE2 * dimensionWPE* sizeof(float));
-//            memcpy(matrixW1PositionE1Dao, updateMatrixW1PositionE1, dimensionC * dimensionWPE * window* sizeof(float));
-//            memcpy(matrixW1PositionE2Dao, updateMatrixW1PositionE2, dimensionC * dimensionWPE * window* sizeof(float));
-//            memcpy(wordVecDao, updateWordVec, dimension * wordTotal * sizeof(float));
-//            
-//            memcpy(matrixW1Dao, updateMatrixW1, sizeof(float) * dimensionC * dimension * window);
-//            memcpy(matrixB1Dao, updateMatrixB1, sizeof(float) * dimensionC);
-//            memcpy(matrixRelationPrDao, updateMatrixRelationPr, relationTotal * sizeof(float));				//add
-//            memcpy(matrixRelationDao, updateMatrixRelation, dimensionC*relationTotal * sizeof(float));
-            
             memcpy(updatePositionVecE1, positionVecE1, PositionTotalE1 * dimensionWPE* sizeof(float));
             memcpy(updatePositionVecE2, positionVecE2, PositionTotalE2 * dimensionWPE* sizeof(float));
             memcpy(updateMatrixW1PositionE1, matrixW1PositionE1, dimensionC * dimensionWPE * window* sizeof(float));
@@ -791,10 +716,6 @@ namespace RL {
                 
             }
             
-//            for (int i = 0; i < featureLen; i ++)
-//                printf("%lf ", featureW[i]);
-//            printf("\n");
-            
             rlLoss /= allChosenSentence.size();
             if (rlLoss > bestLoss)
             {
@@ -812,15 +733,6 @@ namespace RL {
             for (int i = 0; i < 10; i ++)
                 printf("%lf ", featureW[i]);
             printf("\n");
-//            
-//            fclose(fout);
-//            outPath = outString + "_chosenInstance.txt" + Int_to_String(turn);
-//            fout = fopen(outPath.c_str(), "w");
-//            
-//            for (int i = 0; i < allChosenSentence.size(); i ++)
-//                fprintf(fout, "%d ", allChosenSentence[i]);
-//            fprintf(fout, "\n");
-//            fclose(fout);
             test::test(1);
             for (int i = 0; i < dimensionC; i ++)
                 printf("%lf ", matrixB1[i]);
@@ -905,22 +817,10 @@ namespace RL {
             }
             sentenceVec.push_back(r);
         }
-        printf("initialization\n");
+        printf("initialize sentenceVec and lossVec\n");
         UpdateScore();
-//        for (int i = 0; i < trainLists.size(); i ++)
-//        {
-//            if (i > 100) break;
-//            //                    if (i % 100 == 0) printf("%d\n", i);
-//            double res = 0;
-//            double res1 = 0;
-//            float *r = (float *)calloc(dimensionC, sizeof(float));
-//            {
-//                pair<double, float*> tmp = GetSentenceVec(0,trainLists[i], trainPositionE1[i], trainPositionE2[i], trainLength[i], headList[i], tailList[i], relationList[i], res, res1, matrixW1, matrixB1, r, matrixRelation, positionVecE1, positionVecE2, matrixW1PositionE1, matrixW1PositionE2, matrixRelationPr, alpha);
-//                sentenceVec.push_back(tmp.second);
-//                lossVec.push_back(tmp.first);
-//            }
-//            //            free(r);
-//        }
+        printf("encode all instance by conv and compute loss\n");
+    
         
         string scorePath = pathS + "data/pretrain/sentenceVec.txt";
         FILE *fscore = fopen(scorePath.c_str(), "w");
@@ -939,7 +839,7 @@ namespace RL {
         for (int i =0; i < lossVec.size(); i ++)
             fprintf(fscore, "%lf\n", lossVec[i]);
         fclose(fscore);
-        
+        printf("save sentenceVec and lossVec to file\n");
     }
     
     void beginTrain()

@@ -26,24 +26,39 @@ float reduce = 0.98;
 int tt,tt1;
 int dimensionC = 230;//1000; // hidden size
 int dimensionWPE = 5;//25;   // position embedding dim
+int dimension;               // word embedding dim
 int window = 3;
 int limit = 30; // position feature limits
 float marginPositive = 2.5;
 float marginNegative = 0.5;
 float margin = 2;
 float Belt = 0.001;
-float *matrixB1, *matrixRelation, *matrixW1, *matrixRelationDao, *matrixRelationPr, *matrixRelationPrDao;
+// matrixW1: conv weights, flat vector, actual shape: [dimensionC, window, dimension]
+// matrixB1: conv bias, flat vector, actual shape: [dimensionC]
+// matrixRelation: output weights, shape [dimensionC, relationTotal]
+// matrixRelationPr: output bias, shape [relationTotal]
+// matrixRelationPrDao: shape [relationTotal]
+// matrixRelationDao: shape [dimensionC, relationTotal]
+float *matrixB1, *matrixRelation, *matrixW1, *matrixRelationDao, *matrixRelationPr, *matrixRelationPrDao;// array of floats
 float *matrixB1_egs, *matrixRelation_egs, *matrixW1_egs, *matrixRelationPr_egs;
 float *matrixB1_exs, *matrixRelation_exs, *matrixW1_exs, *matrixRelationPr_exs;
+float *matrixW1Dao;// shape [dimensionC, window, dimension]
+float *matrixB1Dao;// shape [dimensionC]
+
+// wordVecDao: actual shape [dimension, wordTotal]
 float *wordVecDao,*wordVec_egs,*wordVec_exs;
+
+// matrixW1PositionE1: conv weights, flat vector, actual shape: [dimensionC, window, dimensionWPE]
+// matrixW1PositionE2: conv weights, flat vector, actual shape: [dimensionC, window, dimensionWPE]
+// positionVecE1: weights, flat vector, actual shape: [PositionTotalE1, dimensionWPE]
+// positionVecE2: weights, flat vector, actual shape: [PositionTotalE2, dimensionWPE]
 float *positionVecE1, *positionVecE2, *matrixW1PositionE1, *matrixW1PositionE2;
 float *positionVecE1_egs, *positionVecE2_egs, *matrixW1PositionE1_egs, *matrixW1PositionE2_egs, *positionVecE1_exs, *positionVecE2_exs, *matrixW1PositionE1_exs, *matrixW1PositionE2_exs;
-float *matrixW1PositionE1Dao;
-float *matrixW1PositionE2Dao;
-float *positionVecDaoE1;
-float *positionVecDaoE2;
-float *matrixW1Dao;
-float *matrixB1Dao;
+float *matrixW1PositionE1Dao; // shape [dimensionC, window, dimensionWPE]
+float *matrixW1PositionE2Dao;// shape [dimensionC, window, dimensionWPE]
+float *positionVecDaoE1;// shape [PositionTotalE1, dimensionWPE]
+float *positionVecDaoE2;// shape [PositionTotalE2, dimensionWPE]
+
 double mx = 0;
 int batch = 16;
 int npoch;
@@ -53,8 +68,8 @@ float eps = 0.0000000001;
 FILE *logg;
 FILE *prlog;
 
-float *wordVec;   // normed word embedding
-int wordTotal, dimension, relationTotal;
+float *wordVec;   // normed word embedding, weights, actual shape [wordTotal, dimension]
+int wordTotal, relationTotal; 
 int PositionMinE1, PositionMaxE1, PositionTotalE1,PositionMinE2, PositionMaxE2, PositionTotalE2;
 map<string,int> wordMapping; // map words to ids
 vector<string> wordList;     // map ids to words
@@ -72,18 +87,25 @@ vector<int> testheadList, testtailList, testrelationList;
 
 vector<std::string> nam; // relaiton set
 
-vector<float *> sentenceVec;
-vector<double>  lossVec;
-vector<float> featureList;
-float* featureW;
-float* bestFeatureW;
-float* featureWDao;
+vector<float *> sentenceVec;// shape [totalInstance, dimensionC]
+vector<double>  lossVec;    // shape [totalInstance]
+// featureList: state F(si) in paper, 1)sentence vec 2) avg chosen sentence set vec 3) head and tail entity in kb
+vector<float> featureList;// shape dimension * 2 + dimensionC * 2 + 1
+float* featureW;    // shape dimension * 2 + dimensionC * 2 + 1
+float* bestFeatureW;// shape dimension * 2 + dimensionC * 2 + 1
+float* featureWDao; // shape dimension * 2 + dimensionC * 2 + 1
 int featureLen = 0;
 float freezeRatio = 0.001;
 
+// updateMatrixRelationPr: shape [relationTotal]
+// updateMatrixRelation: shape [dimensionC, relationTotal]
+// updateMatrixW1: shape [dimensionC, window, dimension]
+// updateMatrixB1: shape [dimensionC]
 float *updateMatrixB1, *updateMatrixRelation, *updateMatrixW1, *updateMatrixRelationPr;
+// updatePositionVecE1: shape [PositionTotalE1, dimensionWPE]
+// updatePositionVecE2: shape [PositionTotalE2, dimensionWPE]
 float *updatePositionVecE1, *updatePositionVecE2, *updateMatrixW1PositionE1, *updateMatrixW1PositionE2;
-float *updateWordVec;
+float *updateWordVec;// shape [dimension, wordTotal]
 
 float *bestMatrixB1, *bestMatrixRelation, *bestMatrixW1, *bestMatrixRelationPr;
 float *bestPositionVecE1, *bestPositionVecE2, *bestMatrixW1PositionE1, *bestMatrixW1PositionE2;
